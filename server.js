@@ -81,3 +81,16 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Proxy running on port ${PORT}`);
   console.log(`🔑 API Key: ${process.env.BRAWL_STARS_API_KEY ? 'Present' : 'Missing'}`);
 });
+
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+
+app.get("/my-ip", async (req, res) => {
+    try {
+      const ip = await axios.get("https://api64.ipify.org?format=json");
+      res.json({ ip: ip.data.ip });
+    } catch (err) {
+      res.status(500).json({ error: "Impossible de récupérer l'IP." });
+    }
+  });
