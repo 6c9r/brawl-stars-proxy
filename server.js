@@ -14,6 +14,19 @@ app.use(cors({
 
 app.use(express.json());
 
+// Fonction pour récupérer l'IP publique
+const getPublicIP = async () => {
+  try {
+    const response = await axios.get('https://api.ipify.org?format=json');
+    console.log('🌐 Server Public IP:', response.data.ip);
+    console.log('⚠️  Add this IP to your Brawl Stars API key!');
+    return response.data.ip;
+  } catch (error) {
+    console.error('Could not fetch public IP');
+    return null;
+  }
+};
+
 // Route de santé
 app.get('/health', (req, res) => {
   res.json({ 
@@ -27,8 +40,27 @@ app.get('/health', (req, res) => {
 app.get('/', (req, res) => {
   res.json({
     message: 'Brawl Stars Proxy is running',
-    endpoints: ['/health', '/api/players/:tag']
+    endpoints: ['/health', '/api/players/:tag', '/api/my-ip']
   });
+});
+
+// Route pour voir l'IP du serveur
+app.get('/api/my-ip', async (req, res) => {
+  try {
+    const response = await axios.get('https://api.ipify.org?format=json');
+    res.json({ 
+      serverIP: response.data.ip,
+      info: "Use this IP for your Brawl Stars API key",
+      instructions: [
+        "1. Go to https://developer.brawlstars.com",
+        "2. Create a new API key",
+        "3. Add this IP address",
+        "4. Update your .env file with the new key"
+      ]
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Could not fetch IP' });
+  }
 });
 
 // Route pour récupérer un joueur
@@ -57,12 +89,19 @@ app.get('/api/players/:tag', async (req, res) => {
     
     if (error.response) {
       const status = error.response.status;
+      const errorData = error.response.data;
+      
       switch (status) {
         case 404:
           res.status(404).json({ error: 'Player not found. Check your tag.' });
           break;
         case 403:
-          res.status(403).json({ error: 'API key invalid or IP not authorized' });
+          console.error('🔒 403 Error Details:', errorData);
+          res.status(403).json({ 
+            error: 'API key invalid or IP not authorized',
+            details: 'Check /api/my-ip to get your server IP',
+            currentKey: process.env.BRAWL_STARS_API_KEY ? 'Key is set' : 'Key is missing'
+          });
           break;
         case 429:
           res.status(429).json({ error: 'Too many requests. Please wait and try again.' });
@@ -77,20 +116,13 @@ app.get('/api/players/:tag', async (req, res) => {
 });
 
 // Démarrage du serveur
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Proxy running on port ${PORT}`);
   console.log(`🔑 API Key: ${process.env.BRAWL_STARS_API_KEY ? 'Present' : 'Missing'}`);
+  
+  // Affiche l'IP au démarrage
+  const ip = await getPublicIP();
+  if (ip) {
+    console.log('📍 Direct link to check IP: http://localhost:' + PORT + '/api/my-ip');
+  }
 });
-
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
-
-app.get("/my-ip", async (req, res) => {
-    try {
-      const ip = await axios.get("https://api64.ipify.org?format=json");
-      res.json({ ip: ip.data.ip });
-    } catch (err) {
-      res.status(500).json({ error: "Impossible de récupérer l'IP." });
-    }
-  });
